@@ -3,9 +3,11 @@ from datetime import datetime
 import pandas as pd
 from aux_functions import get_team_name
 
+
+
 if __name__ == "__main__":
-    # URL of the SkySports RSS feed to parse
-    url = "https://www.skysports.com/rss/11095"
+    # URL of the BBC RSS feed to parse
+    url = "https://feeds.bbci.co.uk/sport/football/rss.xml"
 
     # Parse the RSS feed and store the results
     newsfeed = feedparser.parse(url)
@@ -13,7 +15,7 @@ if __name__ == "__main__":
 
     # Define the lower and upper date boundaries as strings
     lower_time_bound = "2025-05-01"
-    upper_time_bound = "2025-06-04"
+    upper_time_bound = "2025-06-03"
     # Define the format for the boundaries and convert strings to datetime 
     common_format = "%Y-%m-%d"
     lower_comparison_time = datetime.strptime(lower_time_bound, common_format)
@@ -27,7 +29,6 @@ if __name__ == "__main__":
 
     # Iterate over each post in the RSS feed
     for post in posts: 
-        print(post.summary, post.tags[0])
         # Convert the published date to a datetime object removing the BST part
         date_without_bst = " ".join(post.published.split(" ")[:-1])
         new_comparison_time = datetime.strptime(date_without_bst, news_format)
@@ -36,15 +37,14 @@ if __name__ == "__main__":
         teams = get_team_name(post.title + " " + post.summary)  
 
         # Check if the post's published date is within the specified range and if it has the tag "News Story"
-        if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time \
-            and post.tags[0].term in ("News Story", "Article/Blog", "Liveblog") and teams:
+        if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time and teams:
             # Append the post details to the DataFrame
             post = {
                 "Title": post.title,
                 "Summary": post.summary,
                 "Link": post.link,
                 "Date": new_comparison_time.strftime(news_format),
-                "Author": post.author if "author" in post else "Unknown",
+                "Author": "Unknown",
                 "Teams": teams
             }
             data = pd.concat([data, pd.DataFrame([post])], ignore_index=True)
