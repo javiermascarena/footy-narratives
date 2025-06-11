@@ -2,8 +2,8 @@ import feedparser
 from datetime import datetime
 import pandas as pd
 from aux_functions import get_team_name
-from newspaper import Article
-import re
+import requests
+from bs4 import BeautifulSoup
 from typing import Tuple
 
 
@@ -15,21 +15,27 @@ def get_details_from_url(url) -> Tuple[str, str]:
     Returns:
         Tuple[str, str]: A tuple containing the cleaned article text and the author's name.
     """
-    # Create an Article object and download the content
-    article = Article(url)
-    article.download()
-    article.parse()
-    # Extract authors and text from the article
-    authors = article.authors if article.authors else ["Unknown"]
-    text = article.text
+    # Send a GET request to the URL
+    page = requests.get(url)
+    soup = BeautifulSoup(page.content, "html.parser")
 
-    # Clean the text by removing cookie-related phrases and extra newlines
-    chrome_phrase = "Please use Chrome browser for a more accessible video player "
-    cookies_phrase = "Datawrapper Datawrapper , which may be using cookies and other technologies. To show you this content, we need your permission to use cookies. You can use the buttons below to amend your preferences to enable Datawrapper cookies or to allow those cookies just once. You can change your settings at any time via the This content is provided by, which may be using cookies and other technologies. To show you this content, we need your permission to use cookies. You can use the buttons below to amend your preferences to enablecookies or to allow those cookies just once. You can change your settings at any time via the Privacy Options Unfortunately we have been unable to verify if you have consented to Datawrapper cookies. To view this content you can use the button below to allow Datawrapper cookies for this session only. Enable Cookies Allow Cookies Once"
-    text_withouth_cookies = text.replace(chrome_phrase, "").replace(cookies_phrase, "")
-    cleaned_text = re.sub(r"\n+", " ", text_withouth_cookies)
+    # Find the author name in the HTML content
+    # If the author is not found, return an empty string
+    author = soup.find(class_="sdc-article-author__name")
+    if author:
+        author = author.text.strip()
+    else: 
+        author = ""
 
-    return (cleaned_text, authors[0])
+    # Find the article body in the HTML content
+    # If the article body is not found, return an empty string
+    article = soup.find(class_="sdc-article-body sdc-article-body--lead")
+    html_text = article.find_all("p", recursive=False)
+    cleaned_text = ""
+    for paragraph in html_text: 
+        cleaned_text += paragraph.text.strip() + "\n" 
+
+    return (cleaned_text, author)
 
 
 if __name__ == "__main__":
@@ -65,7 +71,8 @@ if __name__ == "__main__":
 
         # Check if the post's published date is within the specified range and if it has the tag "News Story"
         if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time \
-            and post.tags[0].term in ("News Story", "Article/Blog", "Liveblog") and teams:
+            and post.tags[0].term in ("News Story", "Article/Blog") and teams:
+            print(post.link)
             # Append the post details to the DataFrame
             post = {
                 "Title": post.title,
