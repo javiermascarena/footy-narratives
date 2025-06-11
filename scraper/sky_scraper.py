@@ -5,6 +5,7 @@ from aux_functions import get_team_name
 import requests
 from bs4 import BeautifulSoup
 from typing import Tuple
+import os
 
 
 def get_details_from_url(url) -> Tuple[str, str]:
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
     # Define the lower and upper date boundaries as strings
     lower_time_bound = "2025-05-01"
-    upper_time_bound = "2025-06-30"
+    upper_time_bound = "2026-06-30"
     # Define the format for the boundaries and convert strings to datetime 
     common_format = "%Y-%m-%d"
     lower_comparison_time = datetime.strptime(lower_time_bound, common_format)
@@ -58,7 +59,18 @@ if __name__ == "__main__":
     news_format = "%a, %d %b %Y %H:%M:%S"
 
     # Create an empty DataFrame to store the results
-    data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
+    new_data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
+
+    # Load the previous data from the CSV file if it exists
+    # If the file does not exist, create a new DataFrame
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "sky-articles.csv")
+    empty_file = False
+    try: 
+        previous_data = pd.read_csv(csv_path)
+    except FileNotFoundError: 
+        previous_data = new_data
+        empty_file = True
 
     # Iterate over each post in the RSS feed
     for post in posts: 
@@ -69,21 +81,34 @@ if __name__ == "__main__":
         # Extract team names from title and summary
         teams = get_team_name(post.title + " " + post.summary)  
 
-        # Check if the post's published date is within the specified range and if it has the tag "News Story"
-        if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time \
-            and post.tags[0].term in ("News Story", "Article/Blog") and teams:
+        # Check if the post's published date is within the specified range, has the tag "News Story" or "Article/Blog",
+        # has teams, and is not already in the previous data
+        if new_comparison_time >= lower_comparison_time \
+            and new_comparison_time <= upper_comparison_time \
+            and post.tags[0].term in ("News Story", "Article/Blog") \
+            and teams \
+            and (not previous_data["Link"].isin([post.link]).any() or empty_file):
+            
             print(post.link)
+            # Get the article text and author from the URL
+            author, article = get_details_from_url(post.link)
             # Append the post details to the DataFrame
             post = {
                 "Title": post.title,
                 "Summary": post.summary,
                 "Link": post.link,
                 "Date": new_comparison_time.strftime(news_format),
-                "Author": get_details_from_url(post.link)[1],
+                "Author": author,
                 "Teams": teams,
-                "Article": get_details_from_url(post.link)[0]
+                "Article": article
             }
-            data = pd.concat([data, pd.DataFrame([post])], ignore_index=True)
+            # Concatenate the new post to the DataFrame
+            new_data = pd.concat([new_data, pd.DataFrame([post])], ignore_index=True)
 
-    # Display the DataFrame
-    print(data.iloc[1, 6])
+    
+    # Append the new data to the CSV file if it is not empty, otherwise create a new CSV file
+    if not empty_file: 
+        new_data.to_csv(csv_path, mode="a", index=False, header=False)
+    else: 
+        new_data.to_csv(csv_path, index=False)
+    

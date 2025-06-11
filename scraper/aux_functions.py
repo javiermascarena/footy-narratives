@@ -9,7 +9,7 @@ def get_team_name(text) -> list:
     # Example implementation: return the first word as the team name
     teams = {"Arsenal": "Arsenal|Gunners",
               "Chelsea": "Chelsea|Blues",
-              "Manchester United": "Manchester United|Man Utd|Red Devils|Man United",
+              "Manchester United": "Manchester United|Man Utd|Red Devils|Man United|United",
               "Liverpool": "Liverpool|Reds",
               "Manchester City": "Manchester City|Man City|City|Citizens",
               "Tottenham Hotspur": "Tottenham Hotspur|Spurs|Tottenham"}

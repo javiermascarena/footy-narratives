@@ -2,6 +2,42 @@ import feedparser
 from datetime import datetime
 import pandas as pd
 from aux_functions import get_team_name
+import requests
+from bs4 import BeautifulSoup
+from typing import Tuple
+
+
+def get_details_from_url(url) -> Tuple[str, str]:
+    """
+    Extracts the article text and authors from a given URL. 
+    Args:
+        url (str): The URL of the article to be processed.
+    Returns:
+        Tuple[str, str]: A tuple containing the cleaned article text and the author's name.
+    """
+    # Send a GET request to the URL
+    page = requests.get(url)
+    soup = BeautifulSoup(page.content, "html.parser")
+
+    # Find the author name in the HTML content
+    # If the author is not found, return an empty string
+    author = soup.find(class_="ssrcss-12jkbjf-Text-TextContributorName e19uhciu6")
+    if author:
+        author = author.text.strip()
+    else: 
+        author = ""
+
+    # Find the article body in the HTML content
+    # If the article body is not found, return an empty string
+    article = soup.find(class_="ssrcss-4vng7l-ArticleWrapper e1nh2i2l3")
+    html_text = article.find_all("p")
+    cleaned_text = ""
+    for paragraph in html_text: 
+        cleaned_text += paragraph.text.strip() + "\n" 
+
+    print(f"Author: {author}")
+    print(f"Article: {cleaned_text}")
+
 
 
 
@@ -15,7 +51,7 @@ if __name__ == "__main__":
 
     # Define the lower and upper date boundaries as strings
     lower_time_bound = "2025-05-01"
-    upper_time_bound = "2025-06-03"
+    upper_time_bound = "2026-06-30"
     # Define the format for the boundaries and convert strings to datetime 
     common_format = "%Y-%m-%d"
     lower_comparison_time = datetime.strptime(lower_time_bound, common_format)
@@ -25,7 +61,7 @@ if __name__ == "__main__":
     news_format = "%a, %d %b %Y %H:%M:%S"
 
     # Create an empty DataFrame to store the results
-    data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams"])
+    data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
 
     # Iterate over each post in the RSS feed
     for post in posts: 
@@ -38,16 +74,18 @@ if __name__ == "__main__":
 
         # Check if the post's published date is within the specified range and if it has the tag "News Story"
         if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time and teams:
+            print(post.link)
             # Append the post details to the DataFrame
             post = {
                 "Title": post.title,
                 "Summary": post.summary,
                 "Link": post.link,
                 "Date": new_comparison_time.strftime(news_format),
-                "Author": "Unknown",
-                "Teams": teams
+                "Author": get_details_from_url(post.link)[1],
+                "Teams": teams,
+                "Article": get_details_from_url(post.link)[0]
             }
             data = pd.concat([data, pd.DataFrame([post])], ignore_index=True)
 
-    # Display the DataFrame
-    print(data)
+    # Save the DataFrame
+    data.to_csv("bbc-articles.csv")

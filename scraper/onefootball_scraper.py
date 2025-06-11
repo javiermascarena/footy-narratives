@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     # Define the lower and upper date boundaries as strings
     lower_time_bound = "2025-05-01"
-    upper_time_bound = "2025-06-04"
+    upper_time_bound = "2026-06-30"
     # Define the format for the boundaries and convert strings to datetime 
     common_format = "%Y-%m-%d"
     lower_comparison_time = datetime.strptime(lower_time_bound, common_format)
@@ -37,6 +37,7 @@ if __name__ == "__main__":
 
         # Extract team names from title and summary
         teams = get_team_name(post.title + " " + post.summary)  
+        print(post.link)
 
         # Check if the post's published date is within the specified range and if it has the tag "News Story"
         if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time and teams:
