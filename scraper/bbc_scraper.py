@@ -5,6 +5,7 @@ from aux_functions import get_team_name
 import requests
 from bs4 import BeautifulSoup
 from typing import Tuple
+import os
 
 
 def get_details_from_url(url) -> Tuple[str, str]:
@@ -21,24 +22,44 @@ def get_details_from_url(url) -> Tuple[str, str]:
 
     # Find the author name in the HTML content
     # If the author is not found, return an empty string
-    author = soup.find(class_="ssrcss-12jkbjf-Text-TextContributorName e19uhciu6")
-    if author:
+    try: 
+        author = soup.find("div", attrs={"data-component": "byline-block"}).find(class_="ssrcss-12jkbjf-Text-TextContributorName e19uhciu6")
         author = author.text.strip()
-    else: 
+    except AttributeError:
         author = ""
 
-    # Find the article body in the HTML content
+    # Find the text blocks in the HTML content
+    text_blocks = soup.find_all("div", attrs={"data-component": ["text-block","subheadline-block"]})
+
     # If the article body is not found, return an empty string
-    article = soup.find(class_="ssrcss-4vng7l-ArticleWrapper e1nh2i2l3")
-    html_text = article.find_all("p")
     cleaned_text = ""
-    for paragraph in html_text: 
-        cleaned_text += paragraph.text.strip() + "\n" 
+    # Iterate through the text blocks and extract the text from paragraphs and headings
+    for block in text_blocks:
+        html_text = block.find_all(["p", "h2"])
+        for paragraph in html_text: 
+            cleaned_text += paragraph.text.strip() + "\n" 
+    
+    return (cleaned_text, author)
 
-    print(f"Author: {author}")
-    print(f"Article: {cleaned_text}")
 
+def check_mens_football(url) -> bool:
+    """
+    Checks if the post is related to womens football.
+    Args:
+        url (str): The URL of the article to be checked.    
+    Returns:
+        bool: True if the post is related to mens football, False otherwise.
+    """
+    # Send a GET request to the URL
+    page = requests.get(url)
+    soup = BeautifulSoup(page.content, "html.parser")
 
+    # Check if the womens football section is present in the HTML content
+    womens_football = soup.find("a", attrs={"href": "/sport/football/womens"})
+    if womens_football:
+        return False
+    else: 
+        return True
 
 
 if __name__ == "__main__":
@@ -61,7 +82,18 @@ if __name__ == "__main__":
     news_format = "%a, %d %b %Y %H:%M:%S"
 
     # Create an empty DataFrame to store the results
-    data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
+    new_data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
+
+    # Load the previous data from the CSV file if it exists
+    # If the file does not exist, create a new DataFrame
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "bbc-articles.csv")
+    empty_file = False
+    try: 
+        previous_data = pd.read_csv(csv_path)
+    except FileNotFoundError: 
+        previous_data = new_data
+        empty_file = True
 
     # Iterate over each post in the RSS feed
     for post in posts: 
@@ -72,20 +104,38 @@ if __name__ == "__main__":
         # Extract team names from title and summary
         teams = get_team_name(post.title + " " + post.summary)  
 
-        # Check if the post's published date is within the specified range and if it has the tag "News Story"
-        if new_comparison_time >= lower_comparison_time and new_comparison_time <= upper_comparison_time and teams:
+        # Check if the post's published date is within the specified range,
+        # has the desired teams, and is not already in the previous data
+        if new_comparison_time >= lower_comparison_time \
+            and new_comparison_time <= upper_comparison_time \
+            and teams \
+            and (not previous_data["Link"].isin([post.link]).any() or empty_file):
+
+            # Check if the post is related to mens football
+            mens_football = check_mens_football(post.link)
+            # If the post is not related to mens football, skip it
+            if not mens_football:
+                continue
+
             print(post.link)
+            # Get the article text and author from the URL
+            article, author = get_details_from_url(post.link)
+
             # Append the post details to the DataFrame
             post = {
                 "Title": post.title,
                 "Summary": post.summary,
                 "Link": post.link,
                 "Date": new_comparison_time.strftime(news_format),
-                "Author": get_details_from_url(post.link)[1],
+                "Author": author,
                 "Teams": teams,
-                "Article": get_details_from_url(post.link)[0]
+                "Article": article
             }
-            data = pd.concat([data, pd.DataFrame([post])], ignore_index=True)
+            new_data = pd.concat([new_data, pd.DataFrame([post])], ignore_index=True)
 
-    # Save the DataFrame
-    data.to_csv("bbc-articles.csv")
+    # Append the new data to the CSV file if it is not empty, otherwise create a new CSV file
+    if not empty_file: 
+        new_data.to_csv(csv_path, mode="a", index=False, header=False)
+    else: 
+        new_data.to_csv(csv_path, index=False)
+    
