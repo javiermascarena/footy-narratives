@@ -6,6 +6,7 @@ import os
 import requests
 from bs4 import BeautifulSoup   
 from typing import Tuple
+import argparse
 
 
 def get_details_from_url(url) -> Tuple[str, str, str]:
@@ -47,6 +48,21 @@ def get_details_from_url(url) -> Tuple[str, str, str]:
 
 
 if __name__ == "__main__":
+
+    # Parse command line arguments for lower and upper time bounds
+    # This allows the script to be run with specific time bounds for appending articles
+    parser = argparse.ArgumentParser()
+    parser.add_argument("lower_time", help="Lower time bound for appending articles")
+    parser.add_argument("upper_time", help="Upper time bound for appending articles")
+    args = parser.parse_args()
+    lower_time = args.lower_time
+    upper_time = args.upper_time
+    
+    # Put the lower and upper time bounds into datetime objects
+    date_format = "%Y-%m-%d %H:%M:%S.%f"
+    lower_comparison_time = datetime.strptime(lower_time, date_format)
+    upper_comparison_time = datetime.strptime(upper_time, date_format)
+
     # URL of The Guardian RSS feed to parse
     url = "https://www.theguardian.com/football/rss"
 
@@ -54,24 +70,16 @@ if __name__ == "__main__":
     newsfeed = feedparser.parse(url)
     posts = newsfeed.entries
 
-    # Define the lower and upper date boundaries as strings
-    lower_time_bound = "2025-05-01"
-    upper_time_bound = "2026-06-30"
-    # Define the format for the boundaries and convert strings to datetime 
-    common_format = "%Y-%m-%d"
-    lower_comparison_time = datetime.strptime(lower_time_bound, common_format)
-    upper_comparison_time = datetime.strptime(upper_time_bound, common_format)
-
     # Define the format for the published date in the RSS feed entries
     news_format = "%a, %d %b %Y %H:%M:%S"
 
     # Create an empty DataFrame to store the results
-    new_data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article"])
+    new_data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article", "Outlet"])
 
     # Load the previous data from the CSV file if it exists
     # If the file does not exist, create a new DataFrame
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "raw", "theguardian-articles.csv")
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "articles.csv")
     empty_file = False
     try: 
         previous_data = pd.read_csv(csv_path)
@@ -92,12 +100,14 @@ if __name__ == "__main__":
         # has the desired teams, and is not already in the previous data
         if new_comparison_time >= lower_comparison_time \
             and new_comparison_time <= upper_comparison_time \
-            and teams \
-            and (not previous_data["Link"].isin([post.link]).any() or empty_file):
+            and teams:
 
             print(post.link)
             # Get the article text and author from the URL
             article, author, summary = get_details_from_url(post.link)
+            # Skip if no article text is found
+            if article == "": 
+                continue
 
             # Append the post details to the DataFrame
             post = {
@@ -107,7 +117,8 @@ if __name__ == "__main__":
                 "Date": new_comparison_time.strftime(news_format),
                 "Author": author,
                 "Teams": teams,
-                "Article": article
+                "Article": article, 
+                "Outlet": "TheGuardian"
             }
             new_data = pd.concat([new_data, pd.DataFrame([post])], ignore_index=True)
 
