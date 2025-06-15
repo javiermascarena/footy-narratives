@@ -28,7 +28,7 @@ jobs:
         run: python scraper/total_scraper.py
 
       - name: Upload scraped data as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: articles-csv
           path: data/raw/articles.csv
