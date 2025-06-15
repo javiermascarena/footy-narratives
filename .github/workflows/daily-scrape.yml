@@ -2,8 +2,8 @@ name: Daily Scrape
 
 on:
   schedule:
-    # Runs every day at 8 AM UTC
-    - cron: '0 8 * * *'
+    # Runs every day at 8 AM Madrid time
+    - cron: '0 6 * * *'
   workflow_dispatch:    # also lets you trigger it manually from the Actions tab
 
 jobs:
