@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: footy_narratives
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: appuserpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema:/docker-entrypoint-initdb.d  # <-- auto‑runs .sql on first startup
+
+volumes:
+  db_data:
