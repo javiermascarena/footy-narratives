@@ -26,10 +26,10 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Run scraper
-        run: python scraper/total_scraper.py
+        run: python scraper/daily_scraper.py
 
       - name: Upload scraped data as artifact
         uses: actions/upload-artifact@v4
         with:
           name: new_articles
-          path: data/raw/new_articles.csv
+          path: data/new_articles.csv
