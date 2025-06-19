@@ -2,9 +2,9 @@ CREATE DATABASE IF NOT EXISTS `footy_narratives`;
 USE `footy_narratives`;
 
 CREATE TABLE IF NOT EXISTS `outlets` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `name` ENUM("SkySports", "BBC", "TheGuardian")
-)
+    `id` INT PRIMARY KEY,
+    `name` ENUM('SkySports', 'BBC', 'TheGuardian') UNIQUE
+);
 
 CREATE TABLE IF NOT EXISTS `authors` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS `authors` (
 );
 
 CREATE TABLE IF NOT EXISTS `teams` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `name` ENUM("Manchester United", "Manchester City", "Liverpool", "Chelsea", "Tottenham Hotspur", "Arsenal")
+    `id` INT PRIMARY KEY,
+    `name` ENUM('Manchester United', 'Manchester City', 'Liverpool', 'Chelsea', 'Tottenham Hotspur', 'Arsenal') UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS `articles` (

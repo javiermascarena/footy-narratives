@@ -1,34 +1,65 @@
-name: Daily Scrape
+name: Daily Article Ingest
 
+# 1) Schedule it to run every day at 6 AM UTC
 on:
   schedule:
-    # Runs every day at 8 AM Madrid time
     - cron: '0 6 * * *'
-  workflow_dispatch:    # also lets you trigger it manually from the Actions tab
+  workflow_dispatch:  
 
 jobs:
-  scrape:
+  ingest:
+    # 2) Use Ubuntu runner
     runs-on: ubuntu-latest
 
+    # 3) Spin up a MySQL service container
+    services:
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: footy_narratives
+          MYSQL_USER: appuser
+          MYSQL_PASSWORD: appuserpass
+        ports:
+          - 3306:3306
+        # give MySQL a moment to initialize
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # 4) Check out your code
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'      
-
-      - name: Install dependencies
+      # 5) Wait for MySQL to be healthy
+      - name: Wait for MySQL
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          for i in {1..10}; do
+            docker exec ${{ job.services.db.id }} mysqladmin ping -h "127.0.0.1" --silent && break
+            echo "Waiting for MySQL…"
+            sleep 5
+          done
 
-      - name: Run scraper
-        run: python scraper/total_scraper.py
-
-      - name: Upload scraped data as artifact
-        uses: actions/upload-artifact@v4
+      # 6) Set up Python & install deps
+      - uses: actions/setup-python@v4
         with:
-          name: new-articles
-          path: data/raw/articles.csv
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+
+      # 7) Run your daily scraper to produce today's CSV
+      #    (assuming you have a script `scraper/daily_scrape.py` that writes data/new_articles.csv)
+      - name: Scrape new articles
+        run: python scraper/daily_scrape.py
+
+      # 8) Ingest the new CSV into the MySQL service
+      - name: Ingest into DB
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: appuser
+          DB_PASS: appuserpass
+          DB_NAME: footy_narratives
+        run: python scraper/ingest.py data/new_articles.csv
+

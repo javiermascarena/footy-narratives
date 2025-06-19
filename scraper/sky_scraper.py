@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Load the previous data from the CSV file if it exists
     # If the file does not exist, create a new DataFrame
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "raw", "articles.csv")
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "new_articles.csv")
     empty_file = False
     try: 
         pd.read_csv(csv_path)
@@ -100,7 +100,7 @@ if __name__ == "__main__":
             article, author = get_details_from_url(post.link)
 
             # Skip if no article text is found
-            if article == "": 
+            if article == "" or "WSL" in article: 
                 continue
 
             # Append the post details to the DataFrame
