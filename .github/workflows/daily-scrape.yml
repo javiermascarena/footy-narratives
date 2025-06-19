@@ -52,7 +52,13 @@ jobs:
       #    (assuming you have a script `scraper/daily_scrape.py` that writes data/new_articles.csv)
       - name: Scrape new articles
         run: python scraper/daily_scrape.py
-
+      
+      # DEBUG: dump the directory tree
+      - name: Debug: show generated files
+        run: |
+          echo "PWD: $(pwd)"
+          ls -R .
+    
       # 8) Apply the schema to the MySQL service
       - name: Apply database schema
         run: |
