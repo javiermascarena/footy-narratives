@@ -53,10 +53,13 @@ jobs:
       - name: Scrape new articles
         run: python scraper/daily_scrape.py
       
-      # DEBUG: dump the directory tree
-      - name: Debug: show generated files
+      - name: show generated files
+        shell: bash
         run: |
-          echo "PWD: $(pwd)"
+          echo "Working dir: $(pwd)"
+          echo "Listing data/ directory:"
+          ls -l data
+          echo "Full tree:"
           ls -R .
     
       # 8) Apply the schema to the MySQL service
