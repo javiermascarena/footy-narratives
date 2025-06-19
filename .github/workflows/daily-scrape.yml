@@ -53,7 +53,18 @@ jobs:
       - name: Scrape new articles
         run: python scraper/daily_scrape.py
 
-      # 8) Ingest the new CSV into the MySQL service
+      # 8) Apply the schema to the MySQL service
+      - name: Apply database schema
+        run: |
+          # Copy the schema file into the running MySQL container
+          docker cp ./schema/schema.sql ${{ job.services.db.id }}:/tmp/schema.sql
+          # Execute it as root
+          docker exec ${{ job.services.db.id }} mysql \
+            -uroot -prootpassword \
+            -e "SOURCE /tmp/schema.sql;"
+
+
+      # 9) Ingest the new CSV into the MySQL service
       - name: Ingest into DB
         env:
           DB_HOST: 127.0.0.1
