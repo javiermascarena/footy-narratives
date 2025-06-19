@@ -74,11 +74,5 @@ jobs:
           DB_NAME: footy_narratives
         run: python scraper/ingest.py data/new_articles.csv
       
-      # 10) Eliminate the CSV file after ingestion
-      - name: Clean up generated CSV
-        run: |
-          if [ -f data/new_articles.csv ]; then
-            rm data/new_articles.csv
-            echo "Removed data/new_articles.csv"
-          fi
+      
 
