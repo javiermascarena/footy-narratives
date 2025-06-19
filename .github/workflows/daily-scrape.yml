@@ -1,87 +1,35 @@
-name: Daily Article Ingest
+name: Daily Scrape
 
-# 1) Schedule it to run every day at 6 AM UTC
 on:
   schedule:
-    - cron: '0 6 * * *'
-  workflow_dispatch:  
+    # Runs every day at 8 AM UTC
+    - cron: '0 8 * * *'
+    
+  workflow_dispatch:    # also lets you trigger it manually from the Actions tab
 
 jobs:
-  ingest:
-    # 2) Use Ubuntu runner
+  scrape:
     runs-on: ubuntu-latest
 
-    # 3) Spin up a MySQL service container
-    services:
-      db:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: footy_narratives
-          MYSQL_USER: appuser
-          MYSQL_PASSWORD: appuserpass
-        ports:
-          - 3306:3306
-        # give MySQL a moment to initialize
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -prootpassword"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
-      # 4) Check out your code
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 5) Wait for MySQL to be healthy
-      - name: Wait for MySQL
-        run: |
-          for i in {1..10}; do
-            docker exec ${{ job.services.db.id }} mysqladmin ping -h "127.0.0.1" --silent && break
-            echo "Waiting for MySQL…"
-            sleep 5
-          done
-
-      # 6) Set up Python & install deps
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-      - run: pip install -r requirements.txt
+          python-version: '3.x'      
 
-      # 7) Run your daily scraper to produce today's CSV
-      #    (assuming you have a script `scraper/daily_scrape.py` that writes data/new_articles.csv)
-      - name: Scrape new articles
-        run: python scraper/daily_scrape.py
-      
-      - name: show generated files
-        shell: bash
+      - name: Install dependencies
         run: |
-          echo "Working dir: $(pwd)"
-          echo "Listing data/ directory:"
-          ls -l data
-          echo "Full tree:"
-          ls -R .
-    
-      # 8) Apply the schema to the MySQL service
-      - name: Apply database schema
-        run: |
-          # Copy the schema file into the running MySQL container
-          docker cp ./schema/schema.sql ${{ job.services.db.id }}:/tmp/schema.sql
-          # Execute it as root
-          docker exec ${{ job.services.db.id }} mysql \
-            -uroot -prootpassword \
-            -e "SOURCE /tmp/schema.sql;"
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Run scraper
+        run: python scraper/total_scraper.py
 
-      # 9) Ingest the new CSV into the MySQL service
-      - name: Ingest into DB
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_USER: appuser
-          DB_PASS: appuserpass
-          DB_NAME: footy_narratives
-        run: python scraper/ingest.py data/new_articles.csv
-      
-      
-
+      - name: Upload scraped data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: new_articles
+          path: data/raw/new_articles.csv
