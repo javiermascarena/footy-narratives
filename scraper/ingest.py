@@ -27,10 +27,15 @@ if __name__ == "__main__":
     # Create a cursor to execute SQL queries
     mycursor = db.cursor(buffered=True)
 
+    # Get the current date and format it for the CSV file name
+    current_date = datetime.now()
+    file_date = current_date.strftime("%Y-%m-%d")
+    file_date = f"{file_date}.csv"
+
     # Read the CSV file containing new articles
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "new_articles.csv")
-    articles = pd.read_csv(csv_path)
+    csv_path = os.path.join(script_dir, "..", "data", "raw", file_date)
+    articles = pd.read_csv(csv_path, encoding='utf-16')
     # Define the date format for parsing the publication date
     date_format = "%a, %d %b %Y %H:%M:%S"
 
