@@ -1,5 +1,8 @@
 name: Archive Daily CSV
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: '0 8 * * *'
