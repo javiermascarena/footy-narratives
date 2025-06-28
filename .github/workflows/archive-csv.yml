@@ -1,0 +1,57 @@
+name: Archive Daily CSV
+
+on:
+  schedule:
+    # Runs every day at 8 AM UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  archive-csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Check out the special data-archive branch, not main
+      - name: Checkout data‑archive branch
+        uses: actions/checkout@v4
+        with:
+          ref: data-archive
+          persist-credentials: true   # so we can push back to this branch
+
+      # 2) Set up Python & install your scraper’s requirements
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # 3) Run the daily scraper to produce data/new_articles.csv
+      - name: Run scraper
+        run: python scraper/daily_scrape.py
+
+      # 4) Commit the new CSV into an “archives/YYYY-MM-DD.csv” file
+      - name: Commit & push new CSV
+        run: |
+          # configure git so the commit is attributed to the Actions bot
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # force-add the CSV even if it's in .gitignore
+          git add -f data/new_articles.csv
+          
+          # copy it into a date‑named archive folder
+          DATE=$(date -u +'%Y-%m-%d')
+          mkdir -p archives
+          cp data/new_articles.csv archives/${DATE}.csv
+          git add archives/${DATE}.csv
+          
+          # commit & push
+          git commit -m "Archive new_articles.csv for ${DATE}"
+          git push origin data-archive
+
+      # 5) (Optional) Clean up workspace if you like
+      - name: Clean up working directory
+        run: git reset --hard
