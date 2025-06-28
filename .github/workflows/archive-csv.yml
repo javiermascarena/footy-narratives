@@ -30,7 +30,7 @@ jobs:
 
       # 3) Run the daily scraper to produce data/new_articles.csv
       - name: Run scraper
-        run: python scraper/daily_scrape.py
+        run: python scraper/daily_scraper.py
 
       # 4) Commit the new CSV into an “archives/YYYY-MM-DD.csv” file
       - name: Commit & push new CSV
