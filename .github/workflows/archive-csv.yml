@@ -39,20 +39,12 @@ jobs:
         run: |
           git fetch origin data-archive:data-archive
           git checkout data-archive
-      
-      # 5) Remove previous new_articles.csv if it exists
-      - name: Remove previous new_articles.csv if it exists
-        run: |
-          if [ -f data/new_articles.csv ]; then rm data/new_articles.csv; fi
 
-      # 6) Commit only the new CSV files
+      # 5) Commit only the new CSV file
       - name: Commit & push new CSV
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Force-add the scraper output
-          git add -f data/new_articles.csv
 
           # Archive it by date
           DATE=$(date -u +'%Y-%m-%d')
@@ -62,6 +54,6 @@ jobs:
 
           # Commit just those two paths
           git commit -m "Archive CSV for ${DATE}" \
-            -- data/new_articles.csv archives/${DATE}.csv
+            -- archives/${DATE}.csv
 
           git push origin data-archive
