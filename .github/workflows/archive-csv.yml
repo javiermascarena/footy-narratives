@@ -33,27 +33,34 @@ jobs:
       # 3) Run the scraper from the MAIN branch’s code
       - name: Run scraper
         run: python scraper/daily_scrape.py
+      
+        # 4) Save the fresh CSV aside (before switching branches)
+      - name: Save aside new_articles.csv
+        run: |
+          mkdir -p tmp
+          cp data/new_articles.csv tmp/new_articles.csv
 
-      # 4) Switch to data-archive branch (creating it if it doesn’t exist locally)
+      # 5) Switch to data-archive branch and restore the CSV
       - name: Switch to data-archive branch
         run: |
+          # Define the date first
+          DATE=$(date -u +'%Y-%m-%d')
           git fetch origin data-archive:data-archive
           git checkout data-archive
 
-      # 5) Commit only the new CSV file
+          # Now put the fresh file into archives/DATE.csv
+          mkdir -p archives
+          cp tmp/new_articles.csv archives/${DATE}.csv
+
+      # 6) Commit only the new CSV file
       - name: Commit & push new CSV
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Archive it by date
-          DATE=$(date -u +'%Y-%m-%d')
-          mkdir -p archives
-          cp data/new_articles.csv archives/${DATE}.csv
           git add archives/${DATE}.csv
 
           # Commit just those two paths
           git commit -m "Archive CSV for ${DATE}" \
             -- archives/${DATE}.csv
-
           git push origin data-archive
