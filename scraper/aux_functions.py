@@ -11,7 +11,7 @@ def get_team_name(text) -> list:
               "Chelsea": "Chelsea|Blues",
               "Manchester United": "Manchester United|Man Utd|Red Devils|Man United",
               "Liverpool": "Liverpool|Reds",
-              "Manchester City": "Manchester City|Man City|Citizens",
+              "Manchester City": "Manchester City|Man City",
               "Tottenham Hotspur": "Tottenham Hotspur|Spurs|Tottenham"}
     
     # Iterate through the teams dictionary to find matches in the text

@@ -1,20 +1,2 @@
-import pandas as pd
-import os
+print(len('Just 24 days on from their last Premier League game of the 2024-25 season, Manchester City will return to competitive action as they begin their Club World Cup campaign in the United States.Pep Guardiolas side endured a miserable time last term but chairman Khaldoon Al Mubarak said this tournament will mark the start of a new season, rather than a continuation of the previous one.Though a quick turnaround, City will be pleased to jump back on to the relentless footballing treadmill with the opportunity of defending the global crown they won two years ago in Saudi Arabia.Guardiola said: ""The World Cup is an incredible opportunity to understand we come here all together, to show who we are in the best way, playing the sport we love.""Supporters of both sides sharing different continents and places - this is what we should be all around the world. Hopefully this World Cup can help people understand that.""The tournament has since been expanded to 32 teams, with Fifa president Gianni Infantino declaring a ""new era"" for football - and the very same can be said about this City side.With serious competition for places now, how will Guardiolas men line up this season and whose place is in danger?Arrivals and exits - Guardiola freshens things upCity have set their stall out by spending more than £100m to bolster their squad for the tournament and will be heavy favourites against Moroccan champions Wydad AC in Philadelphia.Guardiolas side fell below their high standards last term, failing to win a major trophy for the first time in eight years after finishing third in the league, being knocked out early in the Champions League and beaten in the FA Cup final by Crystal Palace.The Spaniard let go of club legend Kevin de Bruyne and has freshened up his midfield with the signings of £43m box-to-box Dutchman Tijjani Reijnders from AC Milan and Lyons French maverick Rayan Cherki for £30.45m.Ballon dOr winner Rodri and Oscar Bobb are now back and available - after missing most of last season with injury - while £31m signing from Wolves, Rayan Ait-Nouri, will allow City to operate with a specialist left-back for the first time since the departure of Benjamin Mendy.""Im really happy that we were able to bring in such quality reinforcements,"" said Brazil winger Savinho. ""Theyre training really well and integrating into a group that is really settled so that is good to see.""Im looking forward to getting on to the pitch with them."'))
 
-# Write a script that merges two CSV files 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-path0 = os.path.join(script_dir, "..", "data", "raw", "articles.csv")
-path1 = os.path.join(script_dir, "..", "data", "raw", "new-articles.csv")
-path2 = os.path.join(script_dir, "..", "data", "raw", "new-articles2.csv")
-path3 = os.path.join(script_dir, "..", "data", "raw", "new-articles3.csv")
-path4 = os.path.join(script_dir, "..", "data", "raw", "new-articles4.csv")
-output_file = os.path.join(script_dir, "..", "data", "raw", "merged-articles.csv")
-
-df0 = pd.read_csv(path0)
-df1 = pd.read_csv(path1)
-df2 = pd.read_csv(path2)
-df3 = pd.read_csv(path3)    
-df4 = pd.read_csv(path4)
-
-merged_df = pd.concat([df0, df1, df2, df3, df4], ignore_index=True)
-merged_df.to_csv(output_file, index=False)

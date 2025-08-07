@@ -4,3 +4,4 @@ __pycache__/
 *.ipynb_checkpoints/
 data/raw/*.csv
 data/*.csv
+data/*.xlsx
