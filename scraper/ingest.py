@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # Read the CSV file containing new articles
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "raw", "2025-07-30.csv")
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "2025-08-10.csv")
     articles = pd.read_csv(csv_path, encoding='utf-16')
     # Define the date format for parsing the publication date
     date_format = "%a, %d %b %Y %H:%M:%S"

@@ -1,0 +1,15 @@
+{
+  "filename": "topic_clf_v1_20250809T153500Z.joblib",
+  "created_at": "20250809T153500Z",
+  "model_type": "sklearn.pipeline.Pipeline(LogisticRegression)",
+  "classes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "notes": "C=0.0001, class_weight=balanced"
+}

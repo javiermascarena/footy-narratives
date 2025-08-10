@@ -10,7 +10,25 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./schema:/docker-entrypoint-initdb.d  # <-- auto‑runs .sql on first startup
+      - ./app/schema/base_schema.sql:/docker-entrypoint-initdb.d/base_schema.sql
+
+  migrate:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./:/app
+    depends_on:
+      - db
+    entrypoint: ["sh", "-c"]
+    command: >
+      set -e
+      && apt-get update -y && apt-get install -y default-mysql-client > /dev/null
+      && pip install --no-cache-dir mysql-connector-python
+      && until mysqladmin ping -h db --silent; do
+           echo "waiting for db..."
+           sleep 1
+         done
+      && python app/schema/run_migrations.py
 
 volumes:
   db_data:
