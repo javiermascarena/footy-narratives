@@ -7,3 +7,4 @@ data/*.csv
 data/*.xlsx
 app/models/*.joblib
 backup_2025-08-10.sql
+app/.streamlit/secrets.toml
