@@ -4,11 +4,12 @@ import pandas as pd
 import datetime
 import altair as alt
 import io
+from streamlit.components.v1 import html as st_html
 
 # ---- CONFIG ----
 st.set_page_config(page_title="⚽ Footy Narratives", layout="wide", initial_sidebar_state="expanded")
 
-# Replace these with the exact hex colors you like
+# Mapping topics to IDs and colors
 TOPICS_MAPPING = {
     0: "transfers/rumours",
     1: "financial/club news",
@@ -28,6 +29,7 @@ COLOR_FOR_TOPIC = {
     6: "#9E9E9E",  # grey
 }
 
+# Map each team to its image path
 BASE = Path.cwd() / "app" / "static"
 TEAM_IMAGES = {
     "Arsenal": BASE / "Arsenal_FC.svg",
@@ -40,12 +42,12 @@ TEAM_IMAGES = {
 
 # ---- UTIL ----
 def topic_badge_html(label: str, color_hex: str):
-    # small pill badge using inline CSS (safe-ish)
+    # small pill badge using inline CSS 
     return f'<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:{color_hex};color:white;font-weight:600;font-size:12px;margin-right:6px">{label}</span>'
 
 
 def df_from_query_result(qr):
-    # robustly turn the result of conn.query into a DataFrame
+    # return the result of conn.query into a DataFrame
     if qr is None:
         return pd.DataFrame()
     if isinstance(qr, pd.DataFrame):
@@ -66,26 +68,32 @@ def hex_to_rgba(hex_color: str, alpha: float = 1.0) -> str:
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return f"rgba({r},{g},{b},{alpha})"
 
-# ---- DB CONNECTION (same as yours) ----
+# ---- DB CONNECTION ----
 conn = st.connection('mysql', type='sql')
 
-# ---- SIDEBAR: explain + filters ----
+# ---- SIDEBAR: explanation + filters ----
 st.sidebar.title("Filters & Info")
 st.sidebar.markdown("""
-**What this does**  
-Footy Narratives groups news articles into weekly clusters per team and shows the 10 most representative keywords for each cluster.  
-**How to read**: pick a team + week → see cluster cards (top keywords + top article).  
+:grey-background[What this does:] groups news into **weekly storylines** (clusters) per team — a short **set of articles** about the same event (e.g., a transfer or injury).
+
+:grey-background[How to read:] choose team & week → see the **main storylines** with a few keywords and representative articles.
+
+:grey-background[Powered by ML:] storylines, keywords and topic labels are produced automatically using **machine learning** (BERT embeddings + other techniques). These are summaries to help exploration, not definitive facts.
 """)
 
 # Week selector: pick a date and compute week start/end
-day = st.sidebar.date_input("Select week (any day within week)", value=datetime.date.today())
+day = st.sidebar.date_input("Select week (any day within the week)", value=datetime.date.today())
 week_start = day - datetime.timedelta(days=day.weekday())
 week_end = week_start + datetime.timedelta(days=6)
 
+# Team selector: dropdown with team names
 team = st.sidebar.selectbox("Select team", list(TEAM_IMAGES.keys()), index=0)
 
-# Optional filters (topic filter we can show early)
+# Topic filter: multiselect to filter by topic
 topic_filter = st.sidebar.multiselect("Filter by topic", options=list(TOPICS_MAPPING.values()))
+
+# Weeks back slider for trends
+weeks_back = st.sidebar.slider("Weeks to show in trends", min_value=4, max_value=52, value=12, step=1)
 
 # ---- HEADER ----
 col1, col2 = st.columns([0.12, 0.88])
@@ -96,12 +104,13 @@ with col1:
 with col2:
     st.title("⚽ Footy Narratives")
     st.write(f"**{team} — {week_start.isoformat()} → {week_end.isoformat()}**")
-    st.write("Snapshot of the week's storylines, grouped by cluster. Click a cluster to explore articles and top keywords.")
+    st.write("The week's main storylines, with short keywords and a top article.")
+    st.caption("Storylines, keywords and topic labels are generated using AI to summarize articles — use as a guide.")
 
 st.divider()
 
 # ---- QUERY: articles + cluster keywords ----
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False)  # cache data for performance
 def load_week_data(team_name: str, week_start_iso: str, week_end_iso: str):
     query = """
     SELECT wt.cluster_id, wt.topic_id, a.link, a.title, a.publication_date, o.name AS outlet_name
@@ -126,9 +135,9 @@ def load_week_data(team_name: str, week_start_iso: str, week_end_iso: str):
     return df
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False)  # cache keywords loading
 def load_cluster_keywords(team_name: str, week_start_iso: str, week_end_iso: str):
-    # This query returns keywords as "keyword:score,keyword2:score2,..." per cluster_id
+    # The query returns keywords as "keyword:score,keyword2:score2,..." per cluster_id
     q = """
     SELECT wk.cluster_id,
         GROUP_CONCAT(CONCAT(wk.keyword, ':', wk.score) ORDER BY ABS(wk.score) DESC SEPARATOR ',') AS keywords
@@ -152,11 +161,13 @@ def load_cluster_keywords(team_name: str, week_start_iso: str, week_end_iso: str
         return pd.DataFrame(columns=["cluster_id", "keywords"])
 
 
+# ---- LOAD DATA ----
 articles = load_week_data(team, week_start.isoformat(), week_end.isoformat())
 cluster_kw_df = load_cluster_keywords(team, week_start.isoformat(), week_end.isoformat())
 
+# no articles found
 if articles.empty:
-    st.warning("No articles found for this team/week. Try another week or check your ingestion.")
+    st.warning("No articles found for this team/week. Try another week.")
     st.stop()
 
 # merge keywords (if available)
@@ -195,7 +206,7 @@ dominant_topic_name = TOPICS_MAPPING.get(dominant_topic_id, "N/A") if dominant_t
 
 m1, m2, m3 = st.columns([1,1,2])
 m1.metric("Articles", num_articles)
-m2.metric("Clusters", num_clusters)
+m2.metric("Storylines", num_clusters)
 with m3:
     if dominant_topic_id is not None:
         st.metric("Dominant topic", dominant_topic_name)
@@ -210,10 +221,11 @@ st.divider()
 topic_counts = df["topic_id"].map(TOPICS_MAPPING).value_counts().reset_index()
 topic_counts.columns = ["topic", "count"]
 
-# ensure consistent order & colors using your mappings
+# ensure consistent order & colors using the mappings
 domain = [TOPICS_MAPPING[i] for i in sorted(TOPICS_MAPPING.keys())]
 range_colors = [COLOR_FOR_TOPIC[i] for i in sorted(COLOR_FOR_TOPIC.keys())]
 
+# Create a bar chart for topic counts
 chart = (
     alt.Chart(topic_counts)
     .mark_bar()
@@ -231,12 +243,75 @@ chart = (
 )
 
 st.subheader("Topics Overview")
+st.write("The number of articles per topic this week.")
 st.altair_chart(chart, use_container_width=True)
+
+
+# ---- TOPIC TRENDS (history) ----
+st.subheader("Topic trends over time")
+st.write("Each line shows the share of articles for a topic in each recorded week.")
+
+@st.cache_data(show_spinner=False)
+def load_trends(team_name: str):
+    q = """
+    SELECT wt.week_start, wt.topic_id, COUNT(*) AS cnt
+    FROM weekly_topic wt
+    JOIN teams t ON wt.team_id = t.id
+    WHERE t.name = :team
+    GROUP BY wt.week_start, wt.topic_id
+    ORDER BY wt.week_start ASC;
+    """
+    params = {"team": team_name}
+    res = conn.query(q, params=params)
+    df_tr = df_from_query_result(res)
+    if df_tr.empty:
+        return df_tr
+    df_tr["week_start"] = pd.to_datetime(df_tr["week_start"]).dt.date
+    return df_tr
+
+trends_df = load_trends(team)
+
+if not trends_df.empty:
+    # filter out weeks before June 1, 2025 and after the selected week_end
+    lower_cutoff = datetime.date(2025, 6, 1)
+    upper_cutoff = week_end
+    trends_df = trends_df[(trends_df["week_start"] >= lower_cutoff) & (trends_df["week_start"] <= upper_cutoff)]
+
+    # compute percentage per week
+    total_per_week = trends_df.groupby("week_start")["cnt"].sum().rename("total").reset_index()
+    trends_df = trends_df.merge(total_per_week, on="week_start")
+    trends_df["pct"] = trends_df["cnt"] / trends_df["total"] * 100
+    # map topic names
+    trends_df["topic"] = trends_df["topic_id"].map(TOPICS_MAPPING)
+    # limit to last N weeks selected by the user
+    trends_df = trends_df.sort_values("week_start")
+    unique_weeks = sorted(trends_df["week_start"].unique())
+    last_weeks = unique_weeks[-weeks_back:]
+    trends_df = trends_df[trends_df["week_start"].isin(last_weeks)]
+
+    domain = [TOPICS_MAPPING[i] for i in sorted(TOPICS_MAPPING.keys())]
+    range_colors = [COLOR_FOR_TOPIC[i] for i in sorted(COLOR_FOR_TOPIC.keys())]
+
+    # Create a line chart for trends
+    chart_trends = (
+        alt.Chart(trends_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("week_start:T", title="Week"),
+            y=alt.Y("pct:Q", title="% of weekly articles"),
+            color=alt.Color("topic:N", scale=alt.Scale(domain=domain, range=range_colors)),
+            tooltip=["week_start", "topic", alt.Tooltip("pct", format=".1f")]
+        )
+        .properties(height=300)
+    )
+    st.altair_chart(chart_trends, use_container_width=True)
+else:
+    st.info("Not enough historical data to plot topic trends for this team.")
 
 st.divider()
 
 # ---- CLUSTER CARDS ----
-st.subheader("Clusters")
+st.subheader("Storylines")
 clusters = df.groupby("cluster_id")
 for cluster_id, group in clusters:
     count = len(group)
@@ -261,7 +336,7 @@ for cluster_id, group in clusters:
             if ':' in item:
                 kw, score = item.rsplit(':', 1)
                 try:
-                    s = abs(float(score))
+                    s = abs(float(score))  # ensure score is in absolut value
                 except Exception:
                     s = 0.0
             else:
@@ -281,6 +356,7 @@ for cluster_id, group in clusters:
     # turn into sorted list
     parsed = sorted(kw_scores.items(), key=lambda x: x[1], reverse=True)
     mid_index = len(parsed) // 2
+    # take first 5 (normal kws) and middle 5 (people kws) for display
     best_keywords = parsed[:5] + parsed[mid_index:mid_index+5]
 
     # normalize scores to [0.4,1.0]
@@ -296,6 +372,7 @@ for cluster_id, group in clusters:
 
     topic_color = COLOR_FOR_TOPIC.get(topic_id, "#666666")
     chips = []
+    # create chips for keywords with size based on normalized score
     for (kw, s), norm in zip(best_keywords, norms):
         font_size = int(12 + (18 - 12) * norm)
         bar_w = int(20 + (80 - 20) * norm)
@@ -315,22 +392,25 @@ for cluster_id, group in clusters:
         chips.append(chip_html)
 
     cols = st.columns([0.88, 0.12])
+     # Display cluster header with topic badge, keywords and top article
     with cols[0]:
-        st.markdown(f"### Cluster {cluster_id+1} — {count} articles")
+        st.markdown(f"### Storyline {cluster_id+1} — {count} articles")
         st.markdown(topic_badge_html(topic_name, COLOR_FOR_TOPIC.get(topic_id, "#666")), unsafe_allow_html=True)
 
         if chips:
-            st.markdown('<div style="margin-top:6px;margin-bottom:6px;font-size:13px;color:#444">Top keywords (chip size = strength)</div>', unsafe_allow_html=True)
+            st.caption("Top keywords: chip size = strength")
             chips_html = " ".join(chips)
             st.markdown(chips_html, unsafe_allow_html=True)
 
         st.markdown(f"**Top article:** [{top_article_row['title']}]({top_article_row['link']}) — {top_article_row['outlet_name']} ({top_article_row['publication_date']})")
 
+    # Download button for cluster CSV
     with cols[1]:
         cluster_df = group[["title","link","publication_date","outlet_name","topic_id","keywords"]].copy()
-        csv = cluster_df.to_csv(index=False).encode("utf-8")
+        csv = cluster_df.to_csv(index=False).encode("utf-16")
         st.download_button(label="Download CSV", data=csv, file_name=f"cluster_{cluster_id+1}.csv", mime="text/csv")
 
+    # Show all articles in the cluster
     with st.expander("Show all articles in cluster"):
         for _, row in group.sort_values("publication_date", ascending=False).iterrows():
             t = row["title"]
@@ -345,11 +425,11 @@ for cluster_id, group in clusters:
     st.markdown("---")
 
 # ---- FOOTER: export full week ----
-st.caption("Data powered by your scrape + clustering pipeline. Add more UX improvements: search, sentiment, or a timeline view.")
+st.caption("Data powered by the scraping and ML pipeline.")
 
-# Optional: full table + download
+# full table + download
 st.subheader("All articles (table)")
 st.dataframe(df[["cluster_id","topic_id","title","publication_date","outlet_name","keywords"]].rename(columns={"topic_id":"topic"}))
 
-full_csv = df.to_csv(index=False).encode("utf-8")
+full_csv = df.to_csv(index=False).encode("utf-16")
 st.download_button("Download full week CSV", data=full_csv, file_name=f"{team}_{week_start.isoformat()}_{week_end.isoformat()}.csv", mime="text/csv")
