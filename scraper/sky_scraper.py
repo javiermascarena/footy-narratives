@@ -5,8 +5,6 @@ from aux_functions import get_team_name
 import requests
 from bs4 import BeautifulSoup
 from typing import Tuple
-import os
-import argparse
 
 
 def get_details_from_url(url) -> Tuple[str, str]:
@@ -40,21 +38,12 @@ def get_details_from_url(url) -> Tuple[str, str]:
     return (cleaned_text, author)
 
 
-if __name__ == "__main__":
-    
-    # Parse command line arguments for lower and upper time bounds
-    # This allows the script to be run with specific time bounds for appending articles
-    parser = argparse.ArgumentParser()
-    parser.add_argument("lower_time", help="Lower time bound for appending articles")
-    parser.add_argument("upper_time", help="Upper time bound for appending articles")
-    args = parser.parse_args()
-    lower_time = args.lower_time
-    upper_time = args.upper_time
-
-    # Put the lower and upper time bounds into datetime objects
-    date_format = "%Y-%m-%d %H:%M:%S.%f"
-    lower_comparison_time = datetime.strptime(lower_time, date_format)
-    upper_comparison_time = datetime.strptime(upper_time, date_format)
+def sky_scraper(lower_time, upper_time) -> pd.DataFrame:
+    """
+    Scrapes the SkySports Football RSS feed for articles related to mens football within a specified time range.
+    The articles are filtered based on the presence of specific team names in the title or summary.
+    The scraped articles are stored in a DataFrame.
+    """
 
     # URL of the SkySports RSS feed to parse
     url = "https://www.skysports.com/rss/11095"
@@ -69,15 +58,6 @@ if __name__ == "__main__":
     # Create an empty DataFrame to store the results
     new_data = pd.DataFrame(columns=["Title", "Summary", "Link", "Date", "Author", "Teams", "Article", "Outlet"])
 
-    # Load the previous data from the CSV file if it exists
-    # If the file does not exist, create a new DataFrame
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "new_articles.csv")
-    empty_file = False
-    try: 
-        pd.read_csv(csv_path)
-    except FileNotFoundError: 
-        empty_file = True
 
     # Iterate over each post in the RSS feed
     for post in posts: 
@@ -90,12 +70,11 @@ if __name__ == "__main__":
 
         # Check if the post's published date is within the specified range, has the tag "News Story" or "Article/Blog",
         # has teams, and is not already in the previous data
-        if new_comparison_time >= lower_comparison_time \
-            and new_comparison_time <= upper_comparison_time \
+        if new_comparison_time >= lower_time \
+            and new_comparison_time <= upper_time \
             and post.tags[0].term in ("News Story", "Article/Blog") \
             and teams:
 
-            print(post.link)
             # Get the article text and author from the URL
             article, author = get_details_from_url(post.link)
 
@@ -117,10 +96,5 @@ if __name__ == "__main__":
             # Concatenate the new post to the DataFrame
             new_data = pd.concat([new_data, pd.DataFrame([post])], ignore_index=True)
 
-    
-    # Append the new data to the CSV file if it is not empty, otherwise create a new CSV file
-    if not empty_file: 
-        new_data.to_csv(csv_path, mode="a", index=False, header=False)
-    else: 
-        new_data.to_csv(csv_path, index=False)
-    
+    return new_data
+

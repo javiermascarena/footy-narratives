@@ -5,6 +5,7 @@ import datetime
 import altair as alt
 import io
 from streamlit.components.v1 import html as st_html
+from db import get_conn
 
 # ---- CONFIG ----
 st.set_page_config(page_title="⚽ Footy Narratives", layout="wide", initial_sidebar_state="expanded")
@@ -46,18 +47,6 @@ def topic_badge_html(label: str, color_hex: str):
     return f'<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:{color_hex};color:white;font-weight:600;font-size:12px;margin-right:6px">{label}</span>'
 
 
-def df_from_query_result(qr):
-    # return the result of conn.query into a DataFrame
-    if qr is None:
-        return pd.DataFrame()
-    if isinstance(qr, pd.DataFrame):
-        return qr.copy()
-    try:
-        return pd.DataFrame(qr)
-    except Exception:
-        return pd.DataFrame(list(qr))
-
-
 def hex_to_rgba(hex_color: str, alpha: float = 1.0) -> str:
     """Convert '#RRGGBB' or 'RRGGBB' to an rgba(...) string."""
     if not hex_color:
@@ -67,9 +56,6 @@ def hex_to_rgba(hex_color: str, alpha: float = 1.0) -> str:
         return f"rgba(0,0,0,{alpha})"
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return f"rgba({r},{g},{b},{alpha})"
-
-# ---- DB CONNECTION ----
-conn = st.connection('mysql', type='sql')
 
 # ---- SIDEBAR: explanation + filters ----
 st.sidebar.title("Filters & Info")
@@ -109,7 +95,29 @@ with col2:
 
 st.divider()
 
-# ---- QUERY: articles + cluster keywords ----
+
+# ---- DB: connection and query helper ----
+def fetch_df(query: str, params: tuple = None) -> pd.DataFrame:
+    """
+    Execute a read-only query and return a DataFrame. Always closes connection/cursor.
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params or ())
+        rows = cur.fetchall()
+        columns = [d[0] for d in cur.description]
+        df = pd.DataFrame(rows, columns=columns)
+        cur.close()
+        return df
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+# ---- QUERY: articles + cluster keywords + trends ----
 @st.cache_data(show_spinner=False)  # cache data for performance
 def load_week_data(team_name: str, week_start_iso: str, week_end_iso: str):
     query = """
@@ -118,17 +126,12 @@ def load_week_data(team_name: str, week_start_iso: str, week_end_iso: str):
     JOIN teams AS t ON wt.team_id = t.id
     JOIN articles AS a ON wt.article_id = a.id
     JOIN outlets AS o ON a.outlet_id = o.id
-    WHERE t.name = :team
-    AND wt.week_start = :week_start
-    AND wt.week_end = :week_end;
+    WHERE t.name = %s
+    AND wt.week_start = %s
+    AND wt.week_end = %s
     """
-    params = {
-        "team":           team_name,
-        "week_start":     week_start_iso,
-        "week_end":       week_end_iso
-    }
-    qr = conn.query(query, params=params)
-    df = df_from_query_result(qr)
+    params = (team_name, week_start_iso, week_end_iso)
+    df = fetch_df(query, params)
     # ensure datetimes
     if not df.empty:
         df["publication_date"] = pd.to_datetime(df["publication_date"]).dt.date
@@ -148,22 +151,42 @@ def load_cluster_keywords(team_name: str, week_start_iso: str, week_end_iso: str
         wc.week_end = wk.week_end AND 
         wc.team_id = wk.team_id
     JOIN teams AS t ON wk.team_id = t.id
-    WHERE t.name = :team
-      AND wc.week_start = :week_start
-      AND wc.week_end = :week_end
+    WHERE t.name = %s
+      AND wc.week_start = %s
+      AND wc.week_end = %s
     GROUP BY wk.cluster_id;
     """
-    params = {"team": team_name, "week_start": week_start_iso, "week_end": week_end_iso}
+    params = (team_name, week_start_iso, week_end_iso)
     try:
-        res = conn.query(q, params=params)
-        return df_from_query_result(res)
+        df = fetch_df(q, params)
+        return df
     except Exception:
         return pd.DataFrame(columns=["cluster_id", "keywords"])
+
+
+@st.cache_data(show_spinner=False)
+def load_trends(team_name: str):
+    q = """
+    SELECT wt.week_start, wt.topic_id, COUNT(*) AS cnt
+    FROM weekly_topic wt
+    JOIN teams t ON wt.team_id = t.id
+    WHERE t.name = %s
+    GROUP BY wt.week_start, wt.topic_id
+    ORDER BY wt.week_start ASC;
+    """
+    params = (team_name,)
+    df_tr = fetch_df(q, params)
+
+    if df_tr.empty:
+        return df_tr
+    df_tr["week_start"] = pd.to_datetime(df_tr["week_start"]).dt.date
+    return df_tr
 
 
 # ---- LOAD DATA ----
 articles = load_week_data(team, week_start.isoformat(), week_end.isoformat())
 cluster_kw_df = load_cluster_keywords(team, week_start.isoformat(), week_end.isoformat())
+trends_df = load_trends(team)
 
 # no articles found
 if articles.empty:
@@ -250,26 +273,6 @@ st.altair_chart(chart, use_container_width=True)
 # ---- TOPIC TRENDS (history) ----
 st.subheader("Topic trends over time")
 st.write("Each line shows the share of articles for a topic in each recorded week.")
-
-@st.cache_data(show_spinner=False)
-def load_trends(team_name: str):
-    q = """
-    SELECT wt.week_start, wt.topic_id, COUNT(*) AS cnt
-    FROM weekly_topic wt
-    JOIN teams t ON wt.team_id = t.id
-    WHERE t.name = :team
-    GROUP BY wt.week_start, wt.topic_id
-    ORDER BY wt.week_start ASC;
-    """
-    params = {"team": team_name}
-    res = conn.query(q, params=params)
-    df_tr = df_from_query_result(res)
-    if df_tr.empty:
-        return df_tr
-    df_tr["week_start"] = pd.to_datetime(df_tr["week_start"]).dt.date
-    return df_tr
-
-trends_df = load_trends(team)
 
 if not trends_df.empty:
     # filter out weeks before June 1, 2025 and after the selected week_end

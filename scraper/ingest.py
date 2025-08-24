@@ -1,7 +1,10 @@
-import mysql.connector 
 import pandas as pd
-import os
 from datetime import datetime
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from app.db import get_conn
+import pymysql
 
 if __name__ == "__main__":
     # Define the mappings for team and outlet IDs
@@ -15,17 +18,10 @@ if __name__ == "__main__":
                     "TheGuardian": 2,    
                     "SkySports": 3}
 
-    # Connect to the MySQL database
-    db = mysql.connector.connect(
-        host = "localhost",
-        port = 3306,
-        user = "appuser", 
-        password = "appuserpass",
-        database = "footy_narratives"
-    )
-
     # Create a cursor to execute SQL queries
-    mycursor = db.cursor(buffered=True)
+    timeout = 10
+    conn = get_conn()
+    cur = conn.cursor()
 
     # Get the current date and format it for the CSV file name
     current_date = datetime.now()
@@ -34,7 +30,7 @@ if __name__ == "__main__":
 
     # Read the CSV file containing new articles
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "..", "data", "raw", "2025-08-10.csv")
+    csv_path = os.path.join(script_dir, "..", "data", "raw", "2025-08-24.csv")
     articles = pd.read_csv(csv_path, encoding='utf-16')
     # Define the date format for parsing the publication date
     date_format = "%a, %d %b %Y %H:%M:%S"
@@ -64,14 +60,14 @@ if __name__ == "__main__":
 
         # Insert the outlet into the outlets table, or update it if it already exists
         outlet_id = outlet_id_map[outlet] 
-        mycursor.execute("INSERT INTO outlets (id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = name", (outlet_id, outlet))
+        cur.execute("INSERT INTO outlets (id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = name", (outlet_id, outlet))
         
         # Insert the author into the authors table, or update it if it already exists
         if author: 
-            mycursor.execute("INSERT INTO authors (name) VALUES (%s) ON DUPLICATE KEY UPDATE name = name", (author,))
-            mycursor.execute("SELECT id FROM authors WHERE name = %s", (author,))
+            cur.execute("INSERT INTO authors (name) VALUES (%s) ON DUPLICATE KEY UPDATE name = name", (author,))
+            cur.execute("SELECT id FROM authors WHERE name = %s", (author,))
             # Obtain the author ID for the newly inserted or updated author
-            author_id = mycursor.fetchone()[0]
+            author_id = cur.fetchone()["id"]
         else:
             author_id = None
 
@@ -81,22 +77,22 @@ if __name__ == "__main__":
         # Insert the teams into the teams table, or update them if they already exist
         team_ids = []
         for team in team_list: 
-            mycursor.execute("INSERT INTO teams (id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = name", (team_id_map[team], team))
+            cur.execute("INSERT INTO teams (id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = name", (team_id_map[team], team))
             team_ids.append(team_id_map[team])
 
         # Insert the article into the articles table, or update it if it already exists
-        mycursor.execute("INSERT INTO articles (link, title, summary, publication_date, outlet_id, author_id, full_text) "
+        cur.execute("INSERT INTO articles (link, title, summary, publication_date, outlet_id, author_id, full_text) "
                             "VALUES (%s, %s, %s, %s, %s, %s, %s) "
                             "ON DUPLICATE KEY UPDATE title = VALUES(title), summary = VALUES(summary), full_text = VALUES(full_text)",
                         (link, title, summary, date, outlet_id, author_id, full_text))
         # Obtain the article ID for the newly inserted or updated article
-        mycursor.execute("SELECT id FROM articles WHERE link = %s", (link,))
-        article_id = mycursor.fetchone()[0]
+        cur.execute("SELECT id FROM articles WHERE link = %s", (link,))
+        article_id = cur.fetchone()["id"]
 
         # Insert the article-team relationships into the article_teams table
         for team_id in team_ids: 
-            mycursor.execute("INSERT IGNORE INTO article_teams (article_id, team_id) VALUES (%s, %s)", (article_id, team_id))
+            cur.execute("INSERT IGNORE INTO article_teams (article_id, team_id) VALUES (%s, %s)", (article_id, team_id))
 
     # Commit the changes to the databases
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()

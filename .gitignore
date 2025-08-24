@@ -5,6 +5,7 @@ __pycache__/
 data/raw/*.csv
 data/*.csv
 data/*.xlsx
-app/models/*.joblib
-backup_2025-08-10.sql
+# app/models/*.joblib
+backup_2025_08_21.sql
 app/.streamlit/secrets.toml
+secrets/*

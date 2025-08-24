@@ -1,0 +1,49 @@
+name: Weekly ML pipeline
+
+on:
+  schedule:
+    - cron: '0 9 * * 0'  # every Sunday at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  classify_and_cluster:
+    runs-on: ubuntu-latest
+    env:
+      AIVEN_HOST: ${{ secrets.AIVEN_HOST }}
+      AIVEN_PORT: ${{ secrets.AIVEN_PORT }}
+      AIVEN_USER: ${{ secrets.AIVEN_USER }}
+      AIVEN_PASSWORD: ${{ secrets.AIVEN_PASSWORD }}
+      AIVEN_DB: ${{ secrets.AIVEN_DB }}
+      AIVEN_CA_PEM: ${{ secrets.AIVEN_CA_PEM }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (cache)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        # install
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Write Aiven CA PEM to file
+        run: |
+          printf "%s" "$AIVEN_CA_PEM" > ./aiven-ca.pem
+          ls -l ./aiven-ca.pem
+
+      - name: Run topic classifier
+        run: |
+          python app/pipeline/classify_topics.py --ssl-ca ./aiven-ca.pem
+
+      - name: Run clustering and keywords
+        run: |
+          python app/pipeline/cluster_and_keywords.py --ssl-ca ./aiven-ca.pem

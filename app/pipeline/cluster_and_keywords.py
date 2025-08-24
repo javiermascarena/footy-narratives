@@ -4,19 +4,20 @@
 #  - Compute keywords per cluster
 #  - Upsert (insert or update) the prediction into the weekly_topic, weekly_clusters and weekly_keywords tables.
 
-
 from pathlib import Path
-import mysql.connector
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
-import os
 from keybert import KeyBERT
 import spacy
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import OneHotEncoder
 import re
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from db import get_conn
 
 # Logging setup (helps debugging)
 logging.basicConfig(level=logging.INFO)
@@ -41,15 +42,6 @@ TEAM_ALIASES = {
     4: r"\b(?:Manchester City|Man City)\b",
     5: r"\b(?:Manchester United|Man Utd|Red Devils|Man United)\b",
     6: r"\b(?:Tottenham Hotspur|Spurs|Tottenham)\b"
-}
-
-# Database configuration (use env vars in deployment)
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 3306)),
-    "user": os.getenv("DB_USER", "appuser"),
-    "password": os.getenv("DB_PASSWORD", "appuserpass"),
-    "database": os.getenv("DB_NAME", "footy_narratives"),
 }
 
 # Query to upsert the rows
@@ -181,15 +173,15 @@ def main():
     kw_model = KeyBERT(KEYBERT_MODEL)
 
     # connect to DB
-    db = mysql.connector.connect(**DB_CONFIG)
-    cursor = db.cursor(buffered=True)
+    con = get_conn()
+    cursor = con.cursor(buffered=True)
 
     # fetch the list of rows to classify
     articles = fetch_unlabeled_articles(cursor)
     if articles.empty:
         logger.info("No articles to classify. Exiting.")
         cursor.close()
-        db.close()
+        con.close()
         return
 
     logger.info("Found %d articles to classify.", len(articles))
@@ -330,15 +322,15 @@ def main():
             cursor.executemany(UPSERT_WEEKLY_KEYWORDS, keyword_rows)
         if topic_rows:
             cursor.executemany(UPSERT_WEEKLY_TOPICS, topic_rows)
-        db.commit()
+        con.commit()
         logger.info("DB commit successful.")
     except Exception as e:
-        db.rollback()
+        con.rollback()
         logger.exception("DB write error, rolled back: %s", e)
         raise
     finally:
         cursor.close()
-        db.close()
+        con.close()
 
 
 

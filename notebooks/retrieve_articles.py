@@ -1,7 +1,7 @@
-import mysql.connector
 import pandas as pd
 import re
 import os
+from app.db import get_conn  # connection with Aiven DB
 
 def get_teams_from_article(row, teams, team_id_map) -> list:
     """
@@ -42,16 +42,10 @@ def get_teams_from_article(row, teams, team_id_map) -> list:
 
 if __name__ == "__main__":
     # Connect to the MySQL database
-    db = mysql.connector.connect(
-        host="localhost",
-        port=3306,
-        user="appuser",
-        password="appuserpass",
-        database="footy_narratives"
-    )
+    conn = get_conn()
 
     # Create a cursor to execute SQL queries
-    mycursor = db.cursor(buffered=True)
+    mycursor = conn.cursor(buffered=True)
 
     # Query to retrieve all articles from the database
     query = "SELECT article_id, full_text, team_id, outlet_id, publication_date, title " \
@@ -72,7 +66,7 @@ if __name__ == "__main__":
 
     # Close the cursor and database connection
     mycursor.close()
-    db.close()
+    conn.close()
 
     # Define mappings for team and outlet IDs to names
     team_id_map = {1: "Arsenal", 

@@ -4,15 +4,16 @@
 #  - Predict topic label and probability with a saved sklearn pipeline.
 #  - Upsert (insert or update) the prediction into the weekly_topic table.
 
-
 from joblib import load
 from pathlib import Path
-import mysql.connector
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from db import get_conn
 
 # Logging setup (helps debugging)
 logging.basicConfig(level=logging.INFO)
@@ -24,15 +25,6 @@ MODEL_DIR = BASE_DIR / "app" / "models"
 MODEL_NAME = "topic_clf_v1_20250809T153500Z.joblib"   # adjust to your file
 SBERT_MODEL = "all-MiniLM-L6-v2"
 BATCH_SIZE = 256
-
-# Database configuration (use env vars in deployment)
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 3306)),
-    "user": os.getenv("DB_USER", "appuser"),
-    "password": os.getenv("DB_PASSWORD", "appuserpass"),
-    "database": os.getenv("DB_NAME", "footy_narratives"),
-}
 
 # Query to upsert the rows
 UPSERT_SQL = """
@@ -100,15 +92,15 @@ def main():
     sbert = SentenceTransformer(SBERT_MODEL)
 
     # 3) connect to DB
-    db = mysql.connector.connect(**DB_CONFIG)
-    cursor = db.cursor(buffered=True)
+    con = get_conn()
+    cursor = con.cursor(buffered=True)
 
     # 4) fetch the list of rows to classify
     articles = fetch_unlabeled_articles(cursor)
     if articles.empty:
         logger.info("No articles to classify. Exiting.")
         cursor.close()
-        db.close()
+        con.close()
         return
 
     # 5) process in batches (memory-friendly)
@@ -144,20 +136,20 @@ def main():
             logger.info("Upserting %d weekly_topic rows...", len(upsert_rows))
             cursor.executemany(UPSERT_SQL, upsert_rows)
 
-            db.commit()
+            con.commit()
             logger.info("DB commit successful.")
         except Exception as e:
-            db.rollback()
+            con.rollback()
             logger.exception("DB write error, rolled back: %s", e)
             raise
         finally:
             cursor.close()
-            db.close()
+            con.close()
     
     else: 
         logger.info("No rows to upsert.")
         cursor.close()
-        db.close()
+        con.close()
 
 
 
