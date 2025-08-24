@@ -1,6 +1,10 @@
-import streamlit as st
 import pymysql
 import os
+# Not necessary in the scraping workflow, but needed in the Streamlit app
+try: 
+    import streamlit as st
+except ImportError:
+    pass
 
 def get_conn():
     try: 
