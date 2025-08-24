@@ -57,14 +57,7 @@ if __name__ == "__main__":
         author = None if (pd.isna(raw_author) or raw_author=="") else raw_author
         outlet = article.Outlet
         # Clean the different team names from the Teams field
-        raw = article.Teams
-        teams = article.Teams.split(", ")
-        team_list = []
-        for team in teams: 
-            team = team.replace("'", "")
-            team = team.replace("[", "")
-            team = team.replace("]", "")
-            team_list.append(team)
+        team_list = article.Teams
 
         # Insert the outlet into the outlets table, or update it if it already exists
         outlet_id = OUTLET_ID_MAP[outlet] 
