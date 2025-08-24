@@ -4,7 +4,6 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from app.db import get_conn
-import pymysql
 
 if __name__ == "__main__":
     # Define the mappings for team and outlet IDs

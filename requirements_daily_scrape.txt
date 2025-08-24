@@ -1,0 +1,5 @@
+beautifulsoup4==4.13.5
+feedparser==6.0.11
+pandas==2.3.2
+PyMySQL==1.1.1
+Requests==2.32.5
