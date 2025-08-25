@@ -3,8 +3,6 @@ from pathlib import Path
 import pandas as pd
 import datetime
 import altair as alt
-import io
-from streamlit.components.v1 import html as st_html
 from db import get_conn
 
 # ---- CONFIG ----
@@ -414,7 +412,7 @@ for cluster_id, group in clusters:
         st.download_button(label="Download CSV", data=csv, file_name=f"cluster_{cluster_id+1}.csv", mime="text/csv")
 
     # Show all articles in the cluster
-    with st.expander("Show all articles in cluster"):
+    with st.expander("Show all articles in storyline"):
         for _, row in group.sort_values("publication_date", ascending=False).iterrows():
             t = row["title"]
             l = row["link"]
