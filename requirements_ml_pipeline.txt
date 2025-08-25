@@ -7,3 +7,5 @@ scikit_learn==1.7.1
 sentence_transformers==5.0.0
 spacy==3.8.7
 PyMySQL==1.1.1
+# torch>=2.0.0
+en-core-web-sm==3.8.0 
