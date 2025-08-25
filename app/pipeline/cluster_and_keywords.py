@@ -175,7 +175,7 @@ def main():
 
     # connect to DB
     con = get_conn()
-    cursor = con.cursor(buffered=True)
+    cursor = con.cursor()
 
     # fetch the list of rows to classify
     articles = fetch_unlabeled_articles(cursor)
