@@ -34,6 +34,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements_ml_pipeline.txt
+          
+      - name: Install spaCy English model
+        run: python -m spacy download en_core_web_sm
 
       - name: Write Aiven CA PEM to file
         run: |
