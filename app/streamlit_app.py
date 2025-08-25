@@ -90,6 +90,7 @@ with col2:
     st.write(f"**{team} — {week_start.isoformat()} → {week_end.isoformat()}**")
     st.write("The week's main storylines, with short keywords and a top article.")
     st.caption("Storylines, keywords and topic labels are generated using AI to summarize articles — use as a guide.")
+    st.markdown("[Check the full project](https://github.com/javiermascarena/footy-narratives)", unsafe_allow_html=True)
 
 st.divider()
 
@@ -294,16 +295,18 @@ if not trends_df.empty:
     range_colors = [COLOR_FOR_TOPIC[i] for i in sorted(COLOR_FOR_TOPIC.keys())]
 
     # Create a line chart for trends
+    legend = alt.Legend(orient="top", columns=4, labelLimit=200)
     chart_trends = (
         alt.Chart(trends_df)
         .mark_line(point=True)
         .encode(
             x=alt.X("week_start:T", title="Week"),
             y=alt.Y("pct:Q", title="% of weekly articles"),
-            color=alt.Color("topic:N", scale=alt.Scale(domain=domain, range=range_colors)),
+            color=alt.Color("topic:N", scale=alt.Scale(domain=domain, range=range_colors), legend=legend),
             tooltip=["week_start", "topic", alt.Tooltip("pct", format=".1f")]
         )
-        .properties(height=300)
+        .properties(height=300, width="container")
+        .interactive()
     )
     st.altair_chart(chart_trends, use_container_width=True)
 else:
