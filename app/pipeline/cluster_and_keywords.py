@@ -15,8 +15,9 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import OneHotEncoder
 import re
 import sys
-import os
-sys.path.append("../app")
+from pathlib import Path
+project_root = Path(__file__).resolve().parents[2]   
+sys.path.append(str(project_root))
 from app.db import get_conn
 
 # Logging setup (helps debugging)
