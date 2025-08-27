@@ -2,7 +2,7 @@
 
 > Automated weekly storylines and topic summaries for the “Big Six” English clubs — end-to-end scraping, NLP/ML pipelines and a Streamlit dashboard to explore storylines, keywords and topic trends over time.
 
-- **Live demo →** https://javiermascarena-footy-narratives-appstreamlit-app-h2n8ka.streamlit.app/
+- **Live demo →** https://footy-narratives.streamlit.app/
 - **Code →** https://github.com/javiermascarena/footy-narratives
 
 ---
