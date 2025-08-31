@@ -2,7 +2,7 @@ name: Weekly ML pipeline
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # every Monday at 09:00 UTC
+    - cron: '0 6 * * 1'  # every Monday at 06:00 UTC
   workflow_dispatch:
 
 jobs:
